@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+  <category label="服务器 1">
+    <setting id="server1_name"     type="text" label="名称"     default="家里"/>
+    <setting id="server1_url"      type="text" label="服务器地址" default="http://localhost:58091"/>
+    <setting id="server1_username" type="text" label="用户名"   default="admin"/>
+    <setting id="server1_password" type="text" label="密码" option="hidden" default=""/>
+  </category>
+  <category label="服务器 2">
+    <setting id="server2_name"     type="text" label="名称"     default=""/>
+    <setting id="server2_url"      type="text" label="服务器地址" default=""/>
+    <setting id="server2_username" type="text" label="用户名"   default=""/>
+    <setting id="server2_password" type="text" label="密码" option="hidden" default=""/>
+  </category>
+  <category label="服务器 3">
+    <setting id="server3_name"     type="text" label="名称"     default=""/>
+    <setting id="server3_url"      type="text" label="服务器地址" default=""/>
+    <setting id="server3_username" type="text" label="用户名"   default=""/>
+    <setting id="server3_password" type="text" label="密码" option="hidden" default=""/>
+  </category>
+  <category label="服务器 4">
+    <setting id="server4_name"     type="text" label="名称"     default=""/>
+    <setting id="server4_url"      type="text" label="服务器地址" default=""/>
+    <setting id="server4_username" type="text" label="用户名"   default=""/>
+    <setting id="server4_password" type="text" label="密码" option="hidden" default=""/>
+  </category>
+  <category label="服务器 5">
+    <setting id="server5_name"     type="text" label="名称"     default=""/>
+    <setting id="server5_url"      type="text" label="服务器地址" default=""/>
+    <setting id="server5_username" type="text" label="用户名"   default=""/>
+    <setting id="server5_password" type="text" label="密码" option="hidden" default=""/>
+  </category>
+  <category label="显示">
+    <setting id="page_size" type="enum" label="每页歌曲数" lvalues="20|50|100|200" default="1"/>
+  </category>
+</settings>

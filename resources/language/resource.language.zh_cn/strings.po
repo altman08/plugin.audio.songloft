@@ -1,0 +1,72 @@
+# Kodi Media Center language file
+# Addon Name: Songloft
+# Addon id: plugin.audio.songloft
+# Addon Provider: altman08
+msgid ""
+msgstr ""
+"Project-Id-Version: Songloft Kodi Plugin\n"
+"Report-Msgid-Bugs-To: 936396749@qq.com\n"
+"POT-Creation-Date: 2026-06-26\n"
+"PO-Revision-Date: 2026-06-26\n"
+"Last-Translator: altman08 <936396749@qq.com>\n"
+"Language-Team: Chinese Simplified\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgctxt "#32000"
+msgid "Server URL"
+msgstr "服务器地址"
+
+msgctxt "#32001"
+msgid "Username"
+msgstr "用户名"
+
+msgctxt "#32002"
+msgid "Password"
+msgstr "密码"
+
+msgctxt "#32003"
+msgid "Songs per page"
+msgstr "每页歌曲数"
+
+msgctxt "#32010"
+msgid "Music Library"
+msgstr "歌曲库"
+
+msgctxt "#32011"
+msgid "My Playlists"
+msgstr "我的歌单"
+
+msgctxt "#32012"
+msgid "Search"
+msgstr "搜索"
+
+msgctxt "#32013"
+msgid "Re-login"
+msgstr "重新登录"
+
+msgctxt "#32020"
+msgid "Login successful"
+msgstr "登录成功"
+
+msgctxt "#32021"
+msgid "Login failed"
+msgstr "登录失败"
+
+msgctxt "#32022"
+msgid "Load failed"
+msgstr "加载失败"
+
+msgctxt "#32023"
+msgid "Play failed"
+msgstr "播放失败"
+
+msgctxt "#32024"
+msgid "Search songs (title/artist/album)"
+msgstr "搜索歌曲（标题/艺术家/专辑）"
+
+msgctxt "#32025"
+msgid "No results found"
+msgstr "未找到匹配的歌曲"
