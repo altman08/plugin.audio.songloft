@@ -32,7 +32,7 @@ jobs:
             --exclude "$ADDON_ID/.git/*" \
             --exclude "$ADDON_ID/.github/*" \
             --exclude "$ADDON_ID/*.zip" \
-            --exclude "$ADDON_ID/screenshot /*" \
+            --exclude "$ADDON_ID/screenshot/*" \
             --exclude "$ADDON_ID/README.md"
           mv "$ZIP_NAME" "$ADDON_ID/"
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV

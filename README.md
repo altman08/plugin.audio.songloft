@@ -27,7 +27,7 @@ cd ..
 zip -r plugin.audio.songloft.zip plugin.audio.songloft/ \
   --exclude "plugin.audio.songloft/.git/*" \
   --exclude "plugin.audio.songloft/*.zip" \
-  --exclude "plugin.audio.songloft/screenshot /*" \
+  --exclude "plugin.audio.songloft/screenshot/*" \
   --exclude "plugin.audio.songloft/README.md"
 ```
 
@@ -66,6 +66,6 @@ GitHub Actions 会自动打包并创建 Release。
 
 ## 截图
 
-![截图1](screenshot%20/1.png)
-![截图2](screenshot%20/2.png)
-![截图3](screenshot%20/3.png)
+![截图1](screenshot/1.png)
+![截图2](screenshot/2.png)
+![截图3](screenshot/3.png)
