@@ -45,7 +45,10 @@ def _get_setting(key):
 
 
 def _get_page_size():
-    return 50
+    try:
+        return int(_get_setting('page_size') or '50')
+    except ValueError:
+        return 50
 
 
 def _get_server_config(idx):
