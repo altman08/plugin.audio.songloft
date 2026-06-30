@@ -7,6 +7,7 @@ Songloft Kodi 插件
 
 import sys
 from xbmcswift2 import Plugin, xbmcgui, xbmcplugin, xbmc
+import xbmcaddon
 from api import SongloftApi, SongloftException
 
 plugin = Plugin()
@@ -41,7 +42,9 @@ if 'servers' not in _storage:
 # ------------------------------------------------------------------ #
 
 def _get_setting(key):
-    return xbmcplugin.getSetting(int(sys.argv[1]), key)
+    # xbmcplugin.getSetting 在 RunPlugin 进程（handle=-1）中无法读取设置
+    # 改用 xbmcaddon.Addon().getSetting() 在任何上下文都可靠
+    return xbmcaddon.Addon().getSetting(key)
 
 
 def _get_page_size():
@@ -245,8 +248,11 @@ def _fetch_all_songs(api, base_url, token, playlist_id=None, batch=200):
     return all_items
 
 
-def _song_to_item(song, base_url, token=''):
-    """将 Songloft 歌曲 dict 转换为 xbmcswift2 item dict"""
+def _song_to_item(song, base_url, token='', playlist_id=None):
+    """将 Songloft 歌曲 dict 转换为 xbmcswift2 item dict。
+    playlist_id 不为 None 时，上下文菜单附加「从歌单移除」和「添加到歌单」；
+    否则只附加「添加到歌单」。
+    """
     title = song.get('title') or '未知歌曲'
     artist = song.get('artist') or ''
     album = song.get('album') or ''
@@ -267,6 +273,21 @@ def _song_to_item(song, base_url, token=''):
 
     item_path = plugin.url_for('play_song', song_id=str(song_id))
 
+    context_menu = [
+        ('添加到歌单', 'RunPlugin({})'.format(
+            plugin.url_for('song_add_to_playlist', song_id=str(song_id))
+        )),
+    ]
+    if playlist_id is not None:
+        context_menu.insert(0, (
+            '从歌单移除',
+            'RunPlugin({})'.format(
+                plugin.url_for('song_remove_from_playlist',
+                               playlist_id=str(playlist_id),
+                               song_id=str(song_id))
+            )
+        ))
+
     return {
         'label': label,
         'path': item_path,
@@ -283,6 +304,8 @@ def _song_to_item(song, base_url, token=''):
         'properties': {
             '_songloft_id': str(song_id),
         },
+        'context_menu': context_menu,
+        'replace_context_menu': False,
     }
 
 
@@ -447,6 +470,13 @@ def playlists(offset):
     total = resp.get('total', 0)
     items = []
 
+    # 顶部：新建歌单
+    if offset == 0:
+        items.append({
+            'label': '[COLOR green]+ 新建歌单[/COLOR]',
+            'path': plugin.url_for('playlist_create'),
+        })
+
     for pl in pl_list:
         pl_id = pl.get('id')
         name = pl.get('name') or '未命名歌单'
@@ -455,23 +485,32 @@ def playlists(offset):
         cover = pl.get('cover_url') or ''
         cover = _build_url_with_token(cover, base_url, token)
 
-        pl_type = pl.get('type', 'normal')
-        type_label = {'normal': '歌单', 'radio': '电台', 'album': '专辑'}.get(pl_type, '歌单')
+        # 内置/自动歌单不允许重命名和删除
+        labels = pl.get('labels') or []
+        is_builtin = 'built_in' in labels or 'auto_created' in labels
 
-        plot = '[COLOR pink]{}[/COLOR]  {}首歌\n'.format(name, song_count)
-        if description:
-            plot += description + '\n'
-        plot += '类型: {}\n'.format(type_label)
+        context_menu = []
+        if not is_builtin:
+            context_menu = [
+                ('重命名', 'RunPlugin({})'.format(
+                    plugin.url_for('playlist_rename', playlist_id=str(pl_id))
+                )),
+                ('删除歌单', 'RunPlugin({})'.format(
+                    plugin.url_for('playlist_delete', playlist_id=str(pl_id))
+                )),
+            ]
 
-        items.append({
-            'label': name,
+        label_with_count = '{} [COLOR gray]({}首)[/COLOR]'.format(name, song_count)
+        item = {
+            'label': label_with_count,
             'path': plugin.url_for('playlist_songs', playlist_id=str(pl_id), offset='0'),
             'icon': cover or None,
             'thumbnail': cover or None,
-            'info': {
-                'plot': plot,
-            },
-        })
+        }
+        if context_menu:
+            item['context_menu'] = context_menu
+            item['replace_context_menu'] = False
+        items.append(item)
 
     if offset + len(pl_list) < total:
         items.append({
@@ -480,6 +519,82 @@ def playlists(offset):
         })
 
     return items
+
+
+@plugin.route('/playlist/create/')
+def playlist_create():
+    """新建歌单"""
+    if not _ensure_logged_in():
+        return
+
+    dialog = xbmcgui.Dialog()
+    name = dialog.input('新建歌单', type=xbmcgui.INPUT_ALPHANUM)
+    if not name or not name.strip():
+        return
+
+    api = _make_api()
+    try:
+        api.create_playlist(name.strip())
+        _notify('新建歌单', '歌单「{}」已创建'.format(name.strip()))
+        xbmc.executebuiltin('Container.Refresh')
+    except SongloftException as e:
+        _notify_error('新建失败', e.message)
+
+
+@plugin.route('/playlist/rename/<playlist_id>/')
+def playlist_rename(playlist_id):
+    """重命名歌单：先从 API 取当前名称作为输入框默认值"""
+    if not _ensure_logged_in():
+        return
+
+    api = _make_api()
+    try:
+        pl = api.get_playlist(int(playlist_id))
+        current_name = pl.get('name') or ''
+    except SongloftException as e:
+        _notify_error('获取歌单失败', e.message)
+        return
+
+    dialog = xbmcgui.Dialog()
+    new_name = dialog.input('重命名歌单', current_name, xbmcgui.INPUT_ALPHANUM)
+    if not new_name or not new_name.strip():
+        return
+    if new_name.strip() == current_name:
+        return
+
+    try:
+        api.update_playlist(int(playlist_id), name=new_name.strip())
+        _notify('重命名', '已重命名为「{}」'.format(new_name.strip()))
+        xbmc.executebuiltin('Container.Refresh')
+    except SongloftException as e:
+        _notify_error('重命名失败', e.message)
+
+
+@plugin.route('/playlist/delete/<playlist_id>/')
+def playlist_delete(playlist_id):
+    """删除歌单：先从 API 取当前名称用于确认对话框"""
+    if not _ensure_logged_in():
+        return
+
+    api = _make_api()
+    try:
+        pl = api.get_playlist(int(playlist_id))
+        name = pl.get('name') or '该歌单'
+    except SongloftException as e:
+        _notify_error('获取歌单失败', e.message)
+        return
+
+    dialog = xbmcgui.Dialog()
+    confirmed = dialog.yesno('删除歌单', '确定要删除歌单「{}」吗？此操作不可撤销。'.format(name))
+    if not confirmed:
+        return
+
+    try:
+        api.delete_playlist(int(playlist_id))
+        _notify('删除歌单', '歌单「{}」已删除'.format(name))
+        xbmc.executebuiltin('Container.Refresh')
+    except SongloftException as e:
+        _notify_error('删除失败', e.message)
 
 
 # ------------------------------------------------------------------ #
@@ -506,7 +621,7 @@ def playlist_songs(playlist_id, offset):
 
     songs = resp.get('songs', [])
     total = resp.get('total', 0)
-    items = [_song_to_item(s, base_url, token) for s in songs]
+    items = [_song_to_item(s, base_url, token, playlist_id=playlist_id) for s in songs]
 
     # 顶部加入"播放全部"入口（仅第一页显示，避免重复）
     if offset == 0 and total > 0:
@@ -601,6 +716,71 @@ def search_results(keyword, offset):
         })
 
     return items
+
+
+# ------------------------------------------------------------------ #
+# 歌单管理：移除歌曲 / 添加歌曲到歌单
+# ------------------------------------------------------------------ #
+
+@plugin.route('/playlist/<playlist_id>/remove/<song_id>/')
+def song_remove_from_playlist(playlist_id, song_id):
+    """从歌单移除歌曲"""
+    if not _ensure_logged_in():
+        return
+
+    api = _make_api()
+    try:
+        api.remove_song_from_playlist(int(playlist_id), int(song_id))
+        _notify('移除成功', '歌曲已从歌单移除')
+        xbmc.executebuiltin('Container.Refresh')
+    except SongloftException as e:
+        _notify_error('移除失败', e.message)
+
+
+@plugin.route('/song/<song_id>/add_to_playlist/')
+def song_add_to_playlist(song_id):
+    """选择歌单并添加歌曲"""
+    if not _ensure_logged_in():
+        return
+
+    api = _make_api()
+
+    # 拉取歌单列表（只取 normal 类型，最多200个）
+    try:
+        resp = api.get_playlists(limit=200, offset=0, playlist_type='normal')
+    except SongloftException as e:
+        _notify_error('加载歌单失败', e.message)
+        return
+
+    pl_list = resp.get('playlists', [])
+    # 过滤掉内置/自动创建歌单
+    pl_list = [p for p in pl_list
+               if 'built_in' not in (p.get('labels') or [])
+               and 'auto_created' not in (p.get('labels') or [])]
+
+    if not pl_list:
+        _notify('添加到歌单', '暂无可用歌单，请先新建歌单')
+        return
+
+    labels = ['{} ({}首)'.format(p.get('name') or '未命名', p.get('song_count', 0))
+              for p in pl_list]
+
+    dialog = xbmcgui.Dialog()
+    sel = dialog.select('选择歌单', labels)
+    if sel < 0:
+        return
+
+    target = pl_list[sel]
+    try:
+        result = api.add_songs_to_playlist(int(target['id']), [int(song_id)])
+        added = result.get('added', 0) if result else 0
+        skipped = result.get('skipped', 0) if result else 0
+        if added:
+            _notify('添加成功', '已添加到「{}」'.format(target.get('name', '')))
+        else:
+            _notify('已存在', '该歌曲已在歌单「{}」中'.format(target.get('name', '')))
+    except SongloftException as e:
+        _notify_error('添加失败', e.message)
 
 
 # ------------------------------------------------------------------ #

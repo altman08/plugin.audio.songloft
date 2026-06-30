@@ -11,8 +11,10 @@ zip -r "$ZIP_NAME" "$ADDON_ID/" \
   --exclude "$ADDON_ID/.git/*" \
   --exclude "$ADDON_ID/.github/*" \
   --exclude "$ADDON_ID/.gitignore" \
+  --exclude "$ADDON_ID/build.sh" \
   --exclude "$ADDON_ID/*.zip" \
   --exclude "$ADDON_ID/screenshot/*" \
-  --exclude "$ADDON_ID/README.md"
+  --exclude "$ADDON_ID/README.md" \
+  --exclude "$ADDON_ID/tmp/*"
 mv "$ZIP_NAME" "$ADDON_ID/"
 echo "Built: $ADDON_ID/$ZIP_NAME"

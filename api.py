@@ -75,6 +75,51 @@ class SongloftApi(object):
         except Exception as e:
             raise SongloftException('请求异常：{}'.format(str(e)))
 
+    def _put(self, path, data=None):
+        try:
+            resp = self.session.put(self._url(path), json=data, timeout=DEFAULT_TIMEOUT)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.exceptions.ConnectionError:
+            raise SongloftException('无法连接到服务器，请检查服务器地址')
+        except requests.exceptions.Timeout:
+            raise SongloftException('连接超时，请检查网络')
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else 0
+            if status == 401:
+                raise SongloftException('认证失败，请重新登录')
+            elif status == 403:
+                raise SongloftException('权限不足')
+            elif status == 404:
+                raise SongloftException('资源不存在')
+            raise SongloftException('请求失败：HTTP {}'.format(status))
+        except Exception as e:
+            raise SongloftException('请求异常：{}'.format(str(e)))
+
+    def _delete(self, path, data=None):
+        try:
+            resp = self.session.delete(self._url(path), json=data, timeout=DEFAULT_TIMEOUT)
+            resp.raise_for_status()
+            # 204 No Content 无响应体
+            if resp.status_code == 204 or not resp.content:
+                return None
+            return resp.json()
+        except requests.exceptions.ConnectionError:
+            raise SongloftException('无法连接到服务器，请检查服务器地址')
+        except requests.exceptions.Timeout:
+            raise SongloftException('连接超时，请检查网络')
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else 0
+            if status == 401:
+                raise SongloftException('认证失败，请重新登录')
+            elif status == 403:
+                raise SongloftException('权限不足')
+            elif status == 404:
+                raise SongloftException('资源不存在')
+            raise SongloftException('请求失败：HTTP {}'.format(status))
+        except Exception as e:
+            raise SongloftException('请求异常：{}'.format(str(e)))
+
     # ------------------------------------------------------------------ #
     # 认证
     # ------------------------------------------------------------------ #
@@ -130,12 +175,13 @@ class SongloftApi(object):
             pass
 
     # ------------------------------------------------------------------ #
-    # 歌单
+    # 歌单 - 查询
     # ------------------------------------------------------------------ #
 
     def get_playlists(self, limit=100, offset=0, playlist_type=None):
         """
         获取歌单列表
+        GET /api/v1/playlists
         :return: {'playlists': [...], 'total': int}
         """
         params = {'limit': limit, 'offset': offset}
@@ -144,18 +190,91 @@ class SongloftApi(object):
         return self._get('/playlists', params=params)
 
     def get_playlist(self, playlist_id):
-        """获取歌单详情"""
+        """
+        获取歌单详情
+        GET /api/v1/playlists/{id}
+        """
         return self._get('/playlists/{}'.format(playlist_id))
 
     def get_playlist_songs(self, playlist_id, limit=100, offset=0, keyword=None):
         """
         获取歌单内歌曲
+        GET /api/v1/playlists/{id}/songs
         :return: {'songs': [...], 'total': int}
         """
         params = {'limit': limit, 'offset': offset, 'sort': 'position', 'order': 'asc'}
         if keyword:
             params['keyword'] = keyword
         return self._get('/playlists/{}/songs'.format(playlist_id), params=params)
+
+    # ------------------------------------------------------------------ #
+    # 歌单 - 管理
+    # ------------------------------------------------------------------ #
+
+    def create_playlist(self, name, playlist_type='normal', description=None):
+        """
+        创建歌单
+        POST /api/v1/playlists
+        :param name: 歌单名称
+        :param playlist_type: 类型，'normal' 或 'radio'
+        :param description: 描述（可选）
+        :return: 新建的歌单对象
+        """
+        data = {'type': playlist_type, 'name': name}
+        if description:
+            data['description'] = description
+        return self._post('/playlists', data)
+
+    def update_playlist(self, playlist_id, name=None, description=None):
+        """
+        更新歌单信息
+        PUT /api/v1/playlists/{id}
+        :return: 更新后的歌单对象
+        """
+        data = {}
+        if name is not None:
+            data['name'] = name
+        if description is not None:
+            data['description'] = description
+        return self._put('/playlists/{}'.format(playlist_id), data)
+
+    def delete_playlist(self, playlist_id):
+        """
+        删除歌单
+        DELETE /api/v1/playlists/{id}
+        """
+        return self._delete('/playlists/{}'.format(playlist_id))
+
+    def add_songs_to_playlist(self, playlist_id, song_ids):
+        """
+        向歌单添加歌曲
+        POST /api/v1/playlists/{id}/songs
+        :param song_ids: list of int
+        :return: {'added': int, 'skipped': int}
+        """
+        return self._post('/playlists/{}/songs'.format(playlist_id), {'song_ids': song_ids})
+
+    def remove_song_from_playlist(self, playlist_id, song_id):
+        """
+        从歌单移除歌曲
+        DELETE /api/v1/playlists/{id}/songs/{songId}
+        """
+        return self._delete('/playlists/{}/songs/{}'.format(playlist_id, song_id))
+
+    def reorder_playlist_songs(self, playlist_id, song_ids):
+        """
+        重新排序歌单内歌曲
+        PUT /api/v1/playlists/{id}/songs/reorder
+        :param song_ids: 按新顺序排列的歌曲 id 列表
+        """
+        return self._put('/playlists/{}/songs/reorder'.format(playlist_id), {'song_ids': song_ids})
+
+    def touch_playlist(self, playlist_id):
+        """
+        更新歌单最后访问时间
+        POST /api/v1/playlists/{id}/touch
+        """
+        return self._post('/playlists/{}/touch'.format(playlist_id))
 
 
 class SongloftException(Exception):
