@@ -33,7 +33,7 @@ jobs:
       - name: Extract changelog from addon.xml
         id: changelog
         run: |
-          NEWS=$(grep -oP '(?<=<news>)[^<]+' addon.xml | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+          NEWS=$(awk '/<news>/{found=1; sub(/.*<news>/, ""); next} /<\/news>/{found=0} found{print}' addon.xml | sed 's/^[[:space:]]*//' | sed '/^$/d' | head -1 | sed 's/^v[^ ]* - //')
           echo "news<<EOF" >> $GITHUB_OUTPUT
           echo "$NEWS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
